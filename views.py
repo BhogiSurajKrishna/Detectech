@@ -89,9 +89,11 @@ class changepassAPIView(generics.GenericAPIView):
 	serializer_class = PasswordChangeSerializer
 	#@login_required
 	def post(self,request):
+		if request.user.is_anonymous:
+			data = {'Empty': 'No user logged in'}
+			return Response(data=data)
 		serializer = self.get_serializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
-		#if request.user.is_authenticated():
 		login(request,request.user)
 		request.user.set_password(serializer.validated_data['new_password'])
 		request.user.save()
@@ -124,6 +126,9 @@ class generalAPIView(generics.GenericAPIView):
 	queryset = User.objects.all()
 	serializer_class = GeneralSerializer
 	def get(self,request):
+		if request.user.is_anonymous:
+			data = {'Empty': 'No user logged in'}
+			return Response(data=data)
 		serializer = self.get_serializer(request.user)
 		print(request.user)
 		login(request,request.user)
