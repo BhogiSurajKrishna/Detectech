@@ -39,9 +39,12 @@ class loginAPIView(generics.GenericAPIView):
 			user = get_and_authenticate_user(**logins.validated_data)
 			if user:
 				login(request,user)
+			token = Token.objects.filter(user = request.user)
+			if token:
+				return redirect('/general/')
 			serializer1 = AuthUserSerializer(user)
 			f = serializer1.data
-			print(user.states)
+			#print(user.states)
 			if user.states == 1:
 				user.states = 0
 				user.save()
@@ -77,11 +80,17 @@ class logoutAPIView(generics.GenericAPIView):
 		if request.user.is_anonymous:
 			data = {'Empty': 'No user logged in'}
 			return Response(data=data)
-		token = Token.objects.get(user = request.user)
-		token.delete()
-		logout(request)
-		data = {'success':'Succesful'}
-		return Response(data=data)
+		token = Token.objects.filter(user = request.user)
+		if token:
+			token[0].delete()
+			logout(request)
+			data = {'success':'Succesful'}
+			return Response(data=data)
+		else:
+			logout(request)
+			print(request.user)
+			data = {'Empty': 'No user logged in'}
+			return Response(data=data)
 
 #@login_required
 class changepassAPIView(generics.GenericAPIView):
