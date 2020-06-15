@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model,password_validation
 from rest_framework.authtoken.models import Token
 from rest_framework import serializers
 from django.contrib.auth.models import BaseUserManager
+from . import models
 
 User = get_user_model()
 
@@ -25,7 +26,7 @@ class AuthUserSerializer(serializers.ModelSerializer):
 		fields = ('id', 'email', 'username', 'is_active', 'is_staff','auth_token')
 		read_only_fields = ('id', 'is_active', 'is_staff')
     
-	def get_auth_token(self, obj):
+	def get_auth_token(self, obj): #so,obj here is the model we are mentioning in model serializer.
 		token = Token.objects.create(user=obj)
 		return token.key
 
@@ -73,3 +74,14 @@ class GeneralSerializer(serializers.ModelSerializer):
 	# def get_auth_token(self, obj):
 	# 	token = Token.objects.create(user=obj)
 	# 	return token.key
+
+class ClientSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = models.Client
+		fields = ('name','location')
+
+# class SectionSerializer(serializers.ModelSerializer):
+# 	class Meta:
+# 		model = models.Section
+# 		fields = ('client','s_name','s_description')
+# 		read_only_fields = ('client',)
