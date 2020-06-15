@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from .serializers import UserLoginSerializer,AuthUserSerializer,EmptySerializer,UserRegistrationSerializer,PasswordChangeSerializer,ForgotPassSerializer,GeneralSerializer
+from .serializers import UserLoginSerializer,AuthUserSerializer,EmptySerializer,UserRegistrationSerializer,PasswordChangeSerializer,ForgotPassSerializer,GeneralSerializer,ClientSerializer
 from .utils import get_and_authenticate_user,create_user_account
 from rest_framework.views import APIView
 from rest_framework.authentication import TokenAuthentication
@@ -13,6 +13,7 @@ from rest_framework.authentication import TokenAuthentication
 from django.core.mail import send_mail
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+from . import models
 import random
 import string
 a = [i for i in string.ascii_letters]
@@ -44,13 +45,40 @@ class loginAPIView(generics.GenericAPIView):
 				return redirect('/general/')
 			serializer1 = AuthUserSerializer(user)
 			f = serializer1.data
-			#print(user.states)
 			if user.states == 1:
 				user.states = 0
 				user.save()
 				return redirect('/changepass/')
+			#print(request.user)
+			#return Response(serializer1.data)
 			return redirect('/general/')
 		return Response({'error':'give correct fields'})
+
+class generalAPIView(generics.GenericAPIView):
+	queryset = User.objects.all()
+	serializer_class = GeneralSerializer
+	def get(self,request):
+		print(request.user)
+		if request.user.is_anonymous:
+			data = {'Empty': 'No user logged in'}
+			return Response(data=data)
+		token = Token.objects.filter(user=request.user)
+		if not token:
+			logout(request)
+			data = {'Empty': 'No user logged in'}
+			return Response(data=data)
+		serializer = self.get_serializer(request.user)
+		#print(request.user)
+		login(request,request.user)
+		#token = Token.objects.filter(user=request.user)
+		# if token:
+		# 	print(token[0].key)
+		#print(serializer.data)
+		diction = serializer.data
+		if token:
+			diction['token'] = token[0].key
+		return Response(diction)
+
 class registerAPIView(generics.GenericAPIView):
 	queryset = User.objects.all()
 	serializer_class = UserRegistrationSerializer
@@ -103,7 +131,7 @@ class changepassAPIView(generics.GenericAPIView):
 			return Response(data=data)
 		serializer = self.get_serializer(data=request.data)
 		serializer.is_valid(raise_exception=True)
-		login(request,request.user)
+		#login(request,request.user)
 		request.user.set_password(serializer.validated_data['new_password'])
 		request.user.save()
 		login(request,request.user)
@@ -131,14 +159,55 @@ class forgotpassAPIView(generics.GenericAPIView):
 			return Response({'Ok':'We have sent an email of dummy password'})
 		return Response({'false_validity': 'not valid email or email doesnt exist'})
 
-class generalAPIView(generics.GenericAPIView):
+
+
+class create_clientAPIView(generics.GenericAPIView):
+	#authentication_classes = [TokenAuthentication,]
+	#permission_classes = [IsAuthenticated,]
 	queryset = User.objects.all()
-	serializer_class = GeneralSerializer
-	def get(self,request):
+	serializer_class = ClientSerializer
+	def post(self,request):
+		data = {'Empty': 'No user logged in'}
 		if request.user.is_anonymous:
-			data = {'Empty': 'No user logged in'}
 			return Response(data=data)
-		serializer = self.get_serializer(request.user)
-		print(request.user)
-		login(request,request.user)
+		token = Token.objects.filter(user = request.user)
+		if not token:
+			return Response(data=data)
+		client = models.Client.objects.filter(user=request.user)
+		if client:
+			data = {'Disallowed': 'You are already registered as a client'}
+			return Response(data)
+		serializer = self.get_serializer(data=request.data)
+		if serializer.is_valid():
+			models.Client.objects.create(user=request.user,name=serializer.validated_data['name'],location=serializer.validated_data['location'])
+			return redirect('/general/')
+	def get(self,request):
+		data = {'Empty': 'No user logged in'}
+		if request.user.is_anonymous:
+			return Response(data=data)
+		token = Token.objects.filter(user = request.user)
+		if not token:
+			return Response(data=data)
+		client = models.Client.objects.filter(user=request.user)
+		if not client:
+			data = {'Empty': 'You have no client registered'}
+			return Response(data)
+		serializer = self.get_serializer(client[0])
 		return Response(serializer.data)
+	# def put(self,request):
+	# 	data = {'Empty': 'No user logged in'}
+	# 	if request.user.is_anonymous:
+	# 		return Response(data=data)
+	# 	token = Token.objects.filter(user = request.user)
+	# 	if not token:
+	# 		return Response(data=data)
+	# 	client = models.Client.objects.filter(user=request.user)
+	# 	if not client:
+	# 		data = {'Empty': 'You have no client registered'}
+	# 		return Response(data)
+		
+
+# class create_sectionAPIView(generics.GenericAPIView):
+# 	queryset = Client.objects.all()
+# 	serializer_class = SectionSerializer
+# 	def post(self,request):
